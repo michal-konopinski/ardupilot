@@ -28,7 +28,6 @@ public:
 private:
     static const uint8_t channel_count = 4;
     AP_HAL::OwnPtr<AP_HAL::I2CDevice> _dev;
-    uint16_t enable_mask;
     uint16_t period[channel_count];
     virtual void timer_tick(void)override;
     bool corked;
