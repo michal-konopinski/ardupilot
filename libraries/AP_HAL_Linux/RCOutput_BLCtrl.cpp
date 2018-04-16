@@ -34,11 +34,9 @@ using namespace Linux;
 
 RCOutput_BLCTRL::RCOutput_BLCTRL(AP_HAL::OwnPtr<AP_HAL::I2CDevice> dev):_dev(std::move(dev))
 {
-//    printf("RCOutput_BLCTRL::RCOutput_BLCTRL()");
 }
 RCOutput_BLCTRL::~RCOutput_BLCTRL()
 {
-//    printf("RCOutput_BLCTRL::~RCOutput_BLCTRL()");
 }
 
 
@@ -46,7 +44,6 @@ RCOutput_BLCTRL::~RCOutput_BLCTRL()
 
 void RCOutput_BLCTRL::init()
 {
-//    printf("RCOutput_BLCTRL::init()");
     hal.scheduler->register_timer_process(FUNCTOR_BIND_MEMBER(&RCOutput_BLCTRL::timer_tick, void));
     //hal.scheduler->register_io_process(FUNCTOR_BIND_MEMBER(&RCOutput_BLCTRL::timer_tick, void));
 }
@@ -65,36 +62,22 @@ uint16_t RCOutput_BLCTRL::get_freq(uint8_t ch)
 
 void RCOutput_BLCTRL::enable_ch(uint8_t ch)
 {
-    if (ch >= channel_count) {
-        return;
-    }
-//    printf("enable ch=%d\n",ch);
-    enable_mask |= 1U<<ch;
 }
 
 void RCOutput_BLCTRL::disable_ch(uint8_t ch)
 {
-    if (ch >= channel_count) {
-        return;
-    }
-//    printf("disable ch=%d\n",ch);
-    enable_mask &= ~1U<<ch;
+    if(ch<channel_count)
+        period[ch]=0;
 }
 
 void RCOutput_BLCTRL::write(uint8_t ch, uint16_t period_us)
 {
-    if (ch >= channel_count) {
-        return;
-    }
-//    if(period_us!=period[ch])printf("ch=%d val=%d\n",ch,period_us);
-    period[ch] = period_us;
+    if(ch<channel_count)
+        period[ch] = period_us;
 }
 
 uint16_t RCOutput_BLCTRL::read(uint8_t ch)
 {
-    if (ch >= channel_count) {
-        return 0;
-    }
     return period[ch];
 }
 
@@ -109,10 +92,11 @@ void RCOutput_BLCTRL::read(uint16_t *period_us, uint8_t len)
 #define MAX_PULSEWIDTH 1900
 #define BLCTRL_SCALE_1BYTE 247
 #define BLCTRL_SCALE_2BYTE 2047
-#define BLCTRL_SCALE BLCTRL_SCALE_2BYTE
+#define BLCTRL_SCALE BLCTRL_SCALE_1BYTE
 
 void RCOutput_BLCTRL::timer_tick(void)
 {
+    if(corked)return;
     if (!_dev->get_semaphore()->take_nonblocking()) {
 //    if (!_dev->get_semaphore()->take(10)) {
         return;
@@ -125,23 +109,20 @@ void RCOutput_BLCTRL::timer_tick(void)
 
     for(int m=0;m<channel_count;++m)
     {
-	if(enable_mask&(1<<m))
-	{
-	    _dev->set_address(I2C_BLCTRL_BASEADDR + m);
-            uint32_t p=period[m];
-            if(p<MIN_PULSEWIDTH)p=MIN_PULSEWIDTH;
-            p-=MIN_PULSEWIDTH;
-            p*=BLCTRL_SCALE;
-            p/=MAX_PULSEWIDTH-MIN_PULSEWIDTH;
+        _dev->set_address(I2C_BLCTRL_BASEADDR + m);
+        uint32_t p=period[m];
+        if(p<MIN_PULSEWIDTH)p=MIN_PULSEWIDTH;
+        p-=MIN_PULSEWIDTH;
+        p*=BLCTRL_SCALE;
+        p/=MAX_PULSEWIDTH-MIN_PULSEWIDTH;
 #if BLCTRL_SCALE == BLCTRL_SCALE_2BYTE
-            ch_value.data_hi=p/8;
-            ch_value.data_lo=p%8;
-            _dev->transfer((uint8_t *)&ch_value, 2, nullptr, 0);
+        ch_value.data_hi=p/8;
+        ch_value.data_lo=p%8;
+        _dev->transfer((uint8_t *)&ch_value, 2, nullptr, 0);
 #else
-            ch_value.data_hi=p;
-            _dev->transfer((uint8_t *)&ch_value, 1, nullptr, 0);
+        ch_value.data_hi=p;
+        _dev->transfer((uint8_t *)&ch_value, 1, nullptr, 0);
 #endif
-	}
     }
     _dev->get_semaphore()->give();
 }

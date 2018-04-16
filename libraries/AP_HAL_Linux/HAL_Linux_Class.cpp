@@ -36,6 +36,7 @@
 #include "RCOutput_Bebop.h"
 #include "RCOutput_Disco.h"
 #include "RCOutput_PCA9685.h"
+#include "RCOutput_BLCtrl.h"
 #include "RCOutput_PRU.h"
 #include "RCOutput_Sysfs.h"
 #include "RCOutput_ZYNQ.h"
@@ -177,6 +178,11 @@ static RCOutput_PRU rcoutDriver;
       CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BLUE || \
       CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_POCKET
 static RCOutput_AioPRU rcoutDriver;
+/*
+  use the BL-Ctrl based RCOutput driver on pxfmini 
+ */
+#elif CONFIG_RCOUTPUT_BLCTRL && CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_PXFMINI
+static RCOutput_BLCTRL rcoutDriver(i2c_mgr_instance.get_device(1, I2C_BLCTRL_BASEADDR));
 /*
   use the PCA9685 based RCOutput driver on Navio and Erle-Brain 2
  */
